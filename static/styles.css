@@ -4,7 +4,7 @@
 
 :root {
   /* Palette (HSL) */
-  --bg: hsl(40 23% 96%);
+  --bg: #f7f6f2;                     /* hsl(40 23% 96%); keep in sync with theme-color + manifest */
   --bg-grain: hsl(40 18% 92%);
   --surface: hsl(0 0% 100%);
   --surface-2: hsl(40 20% 98%);
@@ -45,33 +45,51 @@
 }
 
 *, *::before, *::after { box-sizing: border-box; }
-html { -webkit-text-size-adjust: 100%; }
+html {
+  -webkit-text-size-adjust: 100%;
+  /* Solid colour: iOS Safari samples it to tint its toolbars and the overscroll area.
+     Gradients or translucency here make Safari fall back to a blurred gradient bar. */
+  background-color: var(--bg);
+  color-scheme: light;
+  -webkit-tap-highlight-color: transparent;
+}
 body {
   margin: 0;
+  position: relative;
   font-family: var(--font);
   font-size: 15px;
   line-height: 1.5;
   letter-spacing: -0.005em;
   color: var(--ink);
-  background:
-    radial-gradient(1200px 500px at 90% -10%, hsl(14 100% 92% / 0.55), transparent 60%),
-    radial-gradient(900px 400px at -10% 0%, hsl(205 70% 92% / 0.45), transparent 60%),
-    var(--bg);
-  background-attachment: fixed;
+  background-color: var(--bg);
   -webkit-font-smoothing: antialiased;
   min-height: 100vh;
+  min-height: 100dvh;
+  /* viewport-fit=cover: keep content clear of the notch / Dynamic Island in landscape. */
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
 }
-/* Subtle paper grain for texture */
-body::before {
+/* Decorative glows + paper grain. Absolutely positioned (scrolling with the page) rather
+   than fixed, so no full-viewport fixed layer sits against the top edge. */
+body::before, body::after {
   content: "";
-  position: fixed;
+  position: absolute;
   inset: 0;
   pointer-events: none;
-  opacity: 0.35;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.3 0 0 0 0 0.25 0 0 0 0 0.2 0 0 0 0.08 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
   z-index: 0;
 }
+body::before {
+  background:
+    radial-gradient(1200px 500px at 90% -10%, hsl(14 100% 92% / 0.55), transparent 60%),
+    radial-gradient(900px 400px at -10% 0%, hsl(205 70% 92% / 0.45), transparent 60%);
+  background-repeat: no-repeat;
+}
+body::after {
+  opacity: 0.35;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.3 0 0 0 0 0.25 0 0 0 0 0.2 0 0 0 0.08 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
 body > * { position: relative; z-index: 1; }
+button, a, label, select, summary { touch-action: manipulation; }
 
 h1, h2, h3 { margin: 0; font-weight: 600; letter-spacing: -0.02em; }
 h2 { font-size: 16px; }
@@ -87,9 +105,11 @@ button, input, select { font: inherit; color: inherit; }
 /* ---------------------------------------------------------------- Top bar */
 .topbar {
   position: sticky; top: 0; z-index: 20;
-  backdrop-filter: saturate(1.4) blur(14px);
-  background: hsl(40 23% 96% / 0.75);
-  border-bottom: 1px solid hsl(35 14% 86% / 0.7);
+  /* Opaque, same colour as the page and theme-color: Safari picks it up as its bar tint.
+     (No backdrop-filter / alpha — those trigger iOS's gradient fallback.) */
+  background-color: var(--bg);
+  border-bottom: 1px solid var(--line);
+  padding-top: env(safe-area-inset-top);
 }
 .topbar-inner { display: flex; align-items: center; justify-content: space-between; height: 64px; }
 .brand { display: inline-flex; align-items: center; gap: 12px; text-decoration: none; color: var(--ink); }
@@ -127,7 +147,7 @@ button, input, select { font: inherit; color: inherit; }
   align-items: start;
 }
 .col-main, .col-side { display: grid; gap: 24px; min-width: 0; }
-.col-side { position: sticky; top: 88px; }
+.col-side { position: sticky; top: calc(88px + env(safe-area-inset-top)); }
 
 /* ------------------------------------------------------------------ Cards */
 .card {
@@ -421,7 +441,7 @@ input:focus, select:focus { outline: none; border-color: var(--accent); box-shad
 }
 
 /* ----------------------------------------------------------------- Toasts */
-.toasts { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); display: grid; gap: 8px; z-index: 50; width: min(440px, calc(100% - 32px)); }
+.toasts { position: fixed; bottom: calc(20px + env(safe-area-inset-bottom)); left: 50%; transform: translateX(-50%); display: grid; gap: 8px; z-index: 50; width: min(440px, calc(100% - 32px)); }
 .toast {
   display: flex; gap: 10px; align-items: flex-start;
   padding: 12px 14px; border-radius: 12px; background: var(--ink); color: #fff;
@@ -437,7 +457,17 @@ input:focus, select:focus { outline: none; border-color: var(--accent); box-shad
 .pill-signout { padding: 0 12px; }
 .pill-signout svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 
-.login-body { display: grid; place-items: center; padding: 32px 16px calc(32px + env(safe-area-inset-bottom)); }
+.login-body { display: grid; place-items: center; padding: calc(32px + env(safe-area-inset-top)) calc(16px + env(safe-area-inset-right)) calc(32px + env(safe-area-inset-bottom)) calc(16px + env(safe-area-inset-left)); }
+/* No header here, so keep the top edge flat (iOS samples it for the status/tool bar tint). */
+.login-body::before {
+  background:
+    radial-gradient(520px 360px at 30% 45%, hsl(205 70% 92% / 0.5), transparent 70%),
+    radial-gradient(560px 380px at 70% 55%, hsl(14 100% 92% / 0.6), transparent 70%);
+}
+.login-body::after {
+  -webkit-mask-image: linear-gradient(transparent, #000 160px);
+  mask-image: linear-gradient(transparent, #000 160px);
+}
 .login-wrap { width: min(380px, 100%); display: grid; justify-items: center; text-align: center; animation: rise 360ms var(--ease); }
 .login-icon { width: 76px; height: 76px; border-radius: 19px; margin-bottom: 20px; box-shadow: 0 18px 36px -14px hsl(222 40% 10% / 0.55), 0 2px 6px hsl(222 30% 10% / 0.12); }
 .login-title { font-size: 24px; letter-spacing: -0.03em; }
@@ -497,4 +527,17 @@ input:focus, select:focus { outline: none; border-color: var(--accent); box-shad
 @media (max-width: 440px) {
   /* Make room for Sign out next to the connection pills: the icon alone carries the brand. */
   .topbar-inner:has(#sign-out:not([hidden])) .brand-text { display: none; }
+}
+
+/* ------------------------------------------------------------ iOS / touch */
+/* Keep the last content clear of the home indicator and Safari's floating toolbar. */
+.layout { padding-bottom: calc(64px + env(safe-area-inset-bottom)); }
+@media (max-width: 680px) {
+  .layout { padding-bottom: calc(48px + env(safe-area-inset-bottom)); }
+}
+/* Dialogs must fit the visible viewport (dvh shrinks as Safari's toolbars / keyboard appear). */
+.dialog { max-height: calc(100dvh - 32px - env(safe-area-inset-top) - env(safe-area-inset-bottom)); overflow: auto; overscroll-behavior: contain; }
+@media (pointer: coarse) {
+  /* iOS zooms the whole page when focusing a field whose text is smaller than 16px. */
+  input, select, textarea { font-size: 16px; }
 }

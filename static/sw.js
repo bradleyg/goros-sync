@@ -2,7 +2,7 @@
    server can't be reached. Network-first throughout so a redeploy is picked up
    immediately; the API is never cached (sync state must always be live). */
 
-const CACHE = "gcs-v1";
+const CACHE = "gcs-v2";
 const SHELL = [
   "/static/styles.css",
   "/static/app.js",
@@ -54,9 +54,9 @@ self.addEventListener("fetch", (event) => {
 function offlinePage() {
   const html = `<!doctype html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1"><title>Offline · COROS Sync</title>
-<meta name="theme-color" content="#f7f5f1">
+<meta name="theme-color" content="#f7f6f2">
 <style>
-  body{margin:0;min-height:100vh;display:grid;place-items:center;background:#f7f5f1;color:#161a22;
+  body{margin:0;min-height:100vh;display:grid;place-items:center;background:#f7f6f2;color:#161a22;
        font:15px/1.5 ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;text-align:center;padding:24px}
   img{width:72px;height:72px;margin-bottom:20px;filter:drop-shadow(0 8px 18px rgba(17,20,27,.25))}
   h1{font-size:20px;margin:0 0 6px;letter-spacing:-.02em} p{margin:0 0 20px;color:#545a66;max-width:320px}
