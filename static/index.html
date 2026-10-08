@@ -2,10 +2,17 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>Garmin → COROS Sync</title>
   <meta name="description" content="Self-hosted sync of Garmin Connect activities to COROS Training Hub, with manual sync, scheduling and a full sync history." />
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23161a22'/%3E%3Ccircle cx='10' cy='16' r='4' fill='%23fff'/%3E%3Ccircle cx='22' cy='16' r='4' fill='%23ff5a36'/%3E%3C/svg%3E" />
+  <meta name="theme-color" content="#f7f5f1" />
+  <link rel="manifest" href="/manifest.webmanifest" />
+  <link rel="icon" href="/static/icons/icon.svg" type="image/svg+xml" />
+  <link rel="icon" href="/static/icons/favicon-32.png" sizes="32x32" type="image/png" />
+  <link rel="apple-touch-icon" href="/static/icons/apple-touch-icon.png" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-title" content="COROS Sync" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet" />
@@ -15,17 +22,19 @@
   <header class="topbar">
     <div class="wrap topbar-inner">
       <a class="brand" href="/" aria-label="Garmin to COROS Sync home">
-        <span class="brand-mark" aria-hidden="true">
-          <span class="dot dot-garmin"></span>
-          <svg viewBox="0 0 24 24" width="14" height="14"><path d="M5 12h12m-4-5 5 5-5 5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-          <span class="dot dot-coros"></span>
-        </span>
+        <img class="brand-icon" src="/static/icons/icon.svg" width="34" height="34" alt="" />
         <span class="brand-text">Garmin <span class="muted">to</span> COROS</span>
       </a>
-      <nav class="conn-pills" aria-label="Connection status">
-        <button class="pill" id="pill-garmin" data-open="garmin" type="button"><span class="led"></span>Garmin</button>
-        <button class="pill" id="pill-coros" data-open="coros" type="button"><span class="led"></span>COROS</button>
-      </nav>
+      <div class="topbar-actions">
+        <nav class="conn-pills" aria-label="Connection status">
+          <button class="pill" id="pill-garmin" data-open="garmin" type="button"><span class="led"></span>Garmin</button>
+          <button class="pill" id="pill-coros" data-open="coros" type="button"><span class="led"></span>COROS</button>
+        </nav>
+        <button class="pill pill-signout" id="sign-out" type="button" hidden aria-label="Sign out">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3M10 17l-5-5 5-5M5 12h11" /></svg>
+          <span>Sign out</span>
+        </button>
+      </div>
     </div>
   </header>
 
@@ -227,5 +236,6 @@
   <div class="toasts" id="toasts" aria-live="assertive"></div>
 
   <script src="/static/app.js" type="module"></script>
+  <script src="/static/pwa.js"></script>
 </body>
 </html>

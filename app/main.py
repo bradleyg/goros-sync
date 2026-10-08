@@ -2,19 +2,19 @@
 
 from __future__ import annotations
 
-import base64
+import asyncio
 import logging
-import secrets
 from contextlib import asynccontextmanager
+from urllib.parse import quote
 
 from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import FileResponse, JSONResponse, Response
+from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 from starlette.concurrency import run_in_threadpool
 
-from . import db
-from .config import APP_PASSWORD, MAX_LOOKBACK_DAYS, STATIC_DIR
+from . import auth, db
+from .config import APP_USERNAME, MAX_LOOKBACK_DAYS, STATIC_DIR
 from .coros_client import CorosClient, CorosError
 from .garmin_service import GarminAuthError, GarminService
 from .scheduler import INTERVAL_CHOICES, SyncScheduler
@@ -39,20 +39,75 @@ app = FastAPI(title="Garmin → COROS Sync", lifespan=lifespan)
 
 
 # ------------------------------------------------------------------ auth
+# Reachable without signing in: the login page itself, health check, and the
+# static/PWA assets a browser fetches without cookies (manifest, icons, worker).
+PUBLIC_PATHS = {"/login", "/api/login", "/api/logout", "/healthz", "/manifest.webmanifest", "/sw.js", "/favicon.ico"}
+PUBLIC_PREFIXES = ("/static/",)
+
+
+def _signed_in(request: Request) -> bool:
+    return not auth.enabled() or auth.verify_token(request.cookies.get(auth.COOKIE_NAME))
+
+
 @app.middleware("http")
-async def basic_auth(request: Request, call_next):
-    if APP_PASSWORD and request.url.path != "/healthz":
-        header = request.headers.get("authorization", "")
-        ok = False
-        if header.lower().startswith("basic "):
-            try:
-                _, _, pw = base64.b64decode(header[6:]).decode().partition(":")
-                ok = secrets.compare_digest(pw, APP_PASSWORD)
-            except Exception:  # noqa: BLE001
-                ok = False
-        if not ok:
-            return Response(status_code=401, headers={"WWW-Authenticate": 'Basic realm="Garmin COROS Sync"'})
-    return await call_next(request)
+async def require_login(request: Request, call_next):
+    path = request.url.path
+    if path in PUBLIC_PATHS or path.startswith(PUBLIC_PREFIXES) or _signed_in(request):
+        return await call_next(request)
+    if path.startswith("/api/"):
+        return JSONResponse({"error": "Please sign in."}, status_code=401)
+    target = path + (f"?{request.url.query}" if request.url.query else "")
+    return RedirectResponse(f"/login?next={quote(target, safe='')}", status_code=303)
+
+
+class Login(BaseModel):
+    username: str = Field(max_length=200)
+    password: str = Field(max_length=500)
+
+
+@app.post("/api/login")
+async def login(body: Login, request: Request):
+    if not auth.enabled():
+        return {"ok": True}
+    client = request.client.host if request.client else "unknown"
+    wait = auth.throttle.retry_after(client)
+    if wait:
+        mins = max(1, round(wait / 60))
+        return JSONResponse(
+            {"error": f"Too many failed attempts. Try again in {mins} minute{'s' if mins != 1 else ''}."},
+            status_code=429,
+            headers={"Retry-After": str(wait)},
+        )
+    if not auth.check_credentials(body.username, body.password):
+        auth.throttle.failed(client)
+        await asyncio.sleep(0.6)  # slow down guessing without blocking other requests
+        return JSONResponse({"error": "Incorrect username or password."}, status_code=401)
+    auth.throttle.succeeded(client)
+    resp = JSONResponse({"ok": True})
+    resp.set_cookie(
+        auth.COOKIE_NAME,
+        auth.issue_token(),
+        max_age=auth.SESSION_TTL,
+        httponly=True,
+        samesite="lax",
+        secure=request.url.scheme == "https",
+        path="/",
+    )
+    return resp
+
+
+@app.post("/api/logout")
+def logout():
+    resp = JSONResponse({"ok": True})
+    resp.delete_cookie(auth.COOKIE_NAME, path="/")
+    return resp
+
+
+@app.get("/login", include_in_schema=False)
+def login_page(request: Request):
+    if _signed_in(request):
+        return RedirectResponse("/", status_code=303)
+    return FileResponse(STATIC_DIR / "login.html", headers={"Cache-Control": "no-store"})
 
 
 @app.get("/healthz", include_in_schema=False)
@@ -100,6 +155,7 @@ def state():
     c = db.get_setting("coros_credentials") or {}
     cs = db.get_setting("coros_session") or {}
     return {
+        "auth": {"enabled": auth.enabled(), "username": APP_USERNAME if auth.enabled() else None},
         "garmin": {
             "connected": bool(g) and garmin_service.has_tokens(),
             "email": g.get("email"),
@@ -253,4 +309,23 @@ app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
 @app.get("/")
 def index():
-    return FileResponse(STATIC_DIR / "index.html")
+    return FileResponse(STATIC_DIR / "index.html", headers={"Cache-Control": "no-cache"})
+
+
+# ------------------------------------------------------------------- PWA
+# Served from the root: a service worker can only control pages under its own path.
+@app.get("/manifest.webmanifest", include_in_schema=False)
+def manifest():
+    return FileResponse(STATIC_DIR / "manifest.webmanifest", media_type="application/manifest+json")
+
+
+@app.get("/sw.js", include_in_schema=False)
+def service_worker():
+    return FileResponse(
+        STATIC_DIR / "sw.js", media_type="text/javascript", headers={"Cache-Control": "no-cache"}
+    )
+
+
+@app.get("/favicon.ico", include_in_schema=False)
+def favicon():
+    return FileResponse(STATIC_DIR / "icons" / "favicon-32.png", media_type="image/png")

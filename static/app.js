@@ -57,6 +57,10 @@ async function api(path, { method = "GET", body } = {}) {
   });
   let data = null;
   try { data = await res.json(); } catch { /* empty */ }
+  if (res.status === 401) {
+    // Session expired or signed out elsewhere: go sign in, then come back here.
+    location.href = `/login?next=${encodeURIComponent(location.pathname + location.search + location.hash)}`;
+  }
   if (!res.ok) {
     const msg = data?.error || (Array.isArray(data?.detail) ? data.detail.map((d) => d.msg).join(", ") : data?.detail) || `Request failed (${res.status})`;
     throw new Error(msg);
@@ -189,7 +193,10 @@ function renderAll() {
 }
 
 function renderConnections() {
-  const { garmin, coros } = state.data;
+  const { garmin, coros, auth } = state.data;
+  const signOut = $("#sign-out");
+  signOut.hidden = !auth?.enabled;
+  signOut.title = auth?.enabled ? `Signed in as ${auth.username}` : "";
   const cfg = {
     garmin: {
       ok: garmin.connected,
@@ -657,6 +664,10 @@ function bindEvents() {
 
   $("#runs-more").addEventListener("click", () => refreshRuns({ append: true }));
   $("#clear-history").addEventListener("click", clearHistory);
+  $("#sign-out").addEventListener("click", async () => {
+    try { await api("/api/logout", { method: "POST" }); } catch { /* signing out anyway */ }
+    location.href = "/login";
+  });
 
   document.addEventListener("visibilitychange", () => { if (!document.hidden) refreshState(); });
   // Keep relative times fresh.

@@ -11,8 +11,10 @@ DATA_DIR = Path(os.getenv("SYNC_DATA_DIR", ROOT_DIR / "data")).expanduser()
 DB_PATH = DATA_DIR / "sync.db"
 GARMIN_TOKEN_DIR = DATA_DIR / "garmin_tokens"
 
-# Optional HTTP basic-auth password for the web UI (username is ignored).
+# Optional sign-in for the web UI. Login is required when APP_PASSWORD is set.
+APP_USERNAME = (os.getenv("APP_USERNAME") or "admin").strip()
 APP_PASSWORD = os.getenv("APP_PASSWORD") or None
+SESSION_DAYS = int(os.getenv("SESSION_DAYS") or 30)
 
 DEFAULT_LOOKBACK_DAYS = 7
 MAX_LOOKBACK_DAYS = 365

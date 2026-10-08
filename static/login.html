@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Sign in · Garmin → COROS Sync</title>
+  <meta name="robots" content="noindex" />
+  <meta name="theme-color" content="#f7f5f1" />
+  <link rel="manifest" href="/manifest.webmanifest" />
+  <link rel="icon" href="/static/icons/icon.svg" type="image/svg+xml" />
+  <link rel="icon" href="/static/icons/favicon-32.png" sizes="32x32" type="image/png" />
+  <link rel="apple-touch-icon" href="/static/icons/apple-touch-icon.png" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-title" content="COROS Sync" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/static/styles.css" />
+</head>
+<body class="login-body">
+  <main class="login-wrap">
+    <img class="login-icon" src="/static/icons/icon.svg" width="76" height="76" alt="" />
+    <h1 class="login-title">Garmin <span class="muted">to</span> COROS</h1>
+    <p class="login-sub">Sign in to manage your activity sync.</p>
+
+    <form class="card login-card" id="login-form" autocomplete="on" novalidate>
+      <div class="form-error" id="login-error" role="alert" hidden></div>
+      <div class="field">
+        <label for="username">Username</label>
+        <input type="text" id="username" name="username" autocomplete="username" autocapitalize="none" spellcheck="false" required />
+      </div>
+      <div class="field">
+        <label for="password">Password</label>
+        <input type="password" id="password" name="password" autocomplete="current-password" required />
+      </div>
+      <button class="btn btn-primary btn-lg login-submit" id="login-submit" type="submit"><span>Sign in</span></button>
+    </form>
+
+    <p class="login-foot">Self-hosted · your credentials never leave this server</p>
+  </main>
+
+  <script src="/static/login.js"></script>
+  <script src="/static/pwa.js"></script>
+</body>
+</html>

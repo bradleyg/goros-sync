@@ -11,8 +11,10 @@ services:
     environment:
       # Schedules ("daily at 07:00") and the timezone sent to COROS follow this.
       TZ: ${TZ:-Europe/London}
-      # Optional HTTP basic-auth password for the UI (any username). Empty = no auth.
+      # Sign-in for the UI. Setting APP_PASSWORD turns on the login page. Empty = no login.
+      APP_USERNAME: ${APP_USERNAME:-admin}
       APP_PASSWORD: ${APP_PASSWORD:-}
+      SESSION_DAYS: ${SESSION_DAYS:-30}
     volumes:
       # SQLite DB, saved credentials and Garmin OAuth tokens.
       - sync-data:/data
