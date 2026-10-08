@@ -84,7 +84,7 @@ class Settings(BaseModel):
 class Schedule(BaseModel):
     enabled: bool
     mode: str
-    interval_hours: int
+    interval_minutes: int
     time: str
     days: list[str]
 
@@ -118,6 +118,7 @@ def state():
         "settings": {"lookback_days": get_lookback_days(), "max_lookback_days": MAX_LOOKBACK_DAYS},
         "sync": engine.progress,
         "last_run": db.last_run(),
+        "last_check": db.get_setting("last_check"),
         "last_success": db.last_successful_run(),
         "totals": db.totals(),
     }

@@ -87,15 +87,15 @@ class SyncEngine:
             "current": None,
         }
         thread = threading.Thread(
-            target=self._run_guarded, args=(run_id, start_date), name=f"sync-{run_id}", daemon=True
+            target=self._run_guarded, args=(run_id, start_date, trigger), name=f"sync-{run_id}", daemon=True
         )
         thread.start()
         return run_id
 
     # ----------------------------------------------------------- worker
-    def _run_guarded(self, run_id: int, start_date: str) -> None:
+    def _run_guarded(self, run_id: int, start_date: str, trigger: str) -> None:
         try:
-            self._run(run_id, start_date)
+            self._run(run_id, start_date, trigger)
         except Exception as exc:  # noqa: BLE001 - always close out the run
             log.exception("Sync %s crashed", run_id)
             db.update_run(run_id, status="failed", finished_at=db.now_iso(), message=str(exc))
@@ -106,7 +106,7 @@ class SyncEngine:
     def _phase(self, phase: str, **extra: Any) -> None:
         self._progress.update(phase=phase, **extra)
 
-    def _run(self, run_id: int, start_date: str) -> None:
+    def _run(self, run_id: int, start_date: str, trigger: str) -> None:
         counts = {"found": 0, "uploaded": 0, "already": 0, "skipped": 0, "failed": 0}
 
         def finish(status: str, message: str | None = None) -> None:
@@ -134,6 +134,11 @@ class SyncEngine:
         db.update_run(run_id, **counts)
 
         if not todo:
+            db.set_setting("last_check", {"at": db.now_iso(), "trigger": trigger, "found": counts["found"]})
+            if trigger == "scheduled":
+                # Nothing new: keep history readable by not logging no-op scheduled runs.
+                db.delete_run(run_id)
+                return None
             return finish("success", "Everything is already up to date.")
 
         # 2. COROS

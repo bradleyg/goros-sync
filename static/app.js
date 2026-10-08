@@ -152,7 +152,8 @@ async function refreshState() {
     renderAll();
     const running = !!data.sync?.running;
     if (state.wasRunning && !running) {
-      onSyncFinished(data.last_run);
+      // A scheduled run with nothing new is discarded server-side; don't toast an older run.
+      if (data.last_run && data.last_run.id === data.sync.last_run_id) onSyncFinished(data.last_run);
     }
     if (running || state.wasRunning) await refreshRuns({ keep: true });
     state.wasRunning = running;
@@ -223,9 +224,12 @@ function renderConnections() {
 }
 
 function renderSync() {
-  const { sync, last_run: last, last_success: lastOk, garmin, coros, schedule, totals, settings } = state.data;
+  const { sync, last_run: last, last_check: check, last_success: lastOk, garmin, coros, schedule, totals, settings } = state.data;
   const ready = garmin.connected && coros.connected;
   const running = !!sync.running;
+  // Scheduled runs that find nothing new aren't kept in history, only recorded as the latest check.
+  const lastTime = last ? Date.parse(last.finished_at || last.started_at) : 0;
+  const checkedSinceLast = !!check && Date.parse(check.at) > lastTime;
   const btn = $("#sync-now");
   btn.disabled = !ready || running;
   btn.classList.toggle("is-running", running);
@@ -245,9 +249,12 @@ function renderSync() {
   } else if (running) {
     headline = "Syncing your activities…";
     sub = sync.trigger === "scheduled" ? "Started automatically by your schedule." : "Started manually.";
-  } else if (!last) {
+  } else if (!last && !check) {
     headline = "Ready for your first sync";
     sub = "Pick how far back to look, then hit Sync now.";
+  } else if (checkedSinceLast) {
+    headline = `Last synced ${relTime(check.at)}`;
+    sub = "No new activities — you're up to date.";
   } else if (last.status === "failed") {
     headline = "Last sync didn't complete";
     sub = `${relTime(last.finished_at || last.started_at)} · ${last.message || "Unknown error"}`;
@@ -261,10 +268,11 @@ function renderSync() {
   $("#sync-sub").textContent = sub;
 
   // Onboarding
-  $("#onboarding").hidden = ready && !!last;
+  const hasSynced = !!(last || check);
+  $("#onboarding").hidden = ready && hasSynced;
   $("#step-garmin").classList.toggle("is-done", garmin.connected);
   $("#step-coros").classList.toggle("is-done", coros.connected);
-  $("#step-sync").classList.toggle("is-done", !!last);
+  $("#step-sync").classList.toggle("is-done", hasSynced);
 
   // Progress
   const prog = $("#progress");
@@ -286,9 +294,16 @@ function renderSync() {
   $("#stat-runs").textContent = totals.runs.toLocaleString();
 }
 
+function intervalLabel(minutes) {
+  if (minutes === 1) return "minute";
+  if (minutes < 60) return `${minutes} minutes`;
+  if (minutes === 60) return "hour";
+  return plural(minutes / 60, "hour");
+}
+
 function scheduleSummary(s) {
   if (!s.enabled) return "Automatic sync is off.";
-  if (s.mode === "interval") return `Runs every ${plural(s.interval_hours, "hour")}.`;
+  if (s.mode === "interval") return `Runs every ${intervalLabel(s.interval_minutes)}.`;
   const days = s.days.length === 7 ? "every day"
     : s.days.join() === "mon,tue,wed,thu,fri" ? "on weekdays"
     : s.days.join() === "sat,sun" ? "on weekends"
@@ -300,13 +315,16 @@ function renderSchedule() {
   const s = state.data.schedule;
   $("#sched-enabled").checked = s.enabled;
   $(`#mode-${s.mode}`).checked = true;
-  const hours = $("#sched-hours");
-  if (!hours.options.length) {
-    hours.innerHTML = s.interval_choices
-      .map((h) => `<option value="${h}">${h === 24 ? "24 hours (daily)" : plural(h, "hour")}</option>`)
+  const interval = $("#sched-hours");
+  if (!interval.options.length) {
+    interval.innerHTML = s.interval_choices
+      .map((m) => {
+        const label = m === 1440 ? "24 hours (daily)" : m === 1 ? "1 minute" : m === 60 ? "1 hour" : intervalLabel(m);
+        return `<option value="${m}">${label}</option>`;
+      })
       .join("");
   }
-  hours.value = String(s.interval_hours);
+  interval.value = String(s.interval_minutes);
   $("#sched-time").value = s.time;
   for (const cb of $$("#sched-days input")) cb.checked = s.days.includes(cb.value);
   $("#lookback").value = state.data.settings.lookback_days;
@@ -547,7 +565,7 @@ function readScheduleForm() {
   return {
     enabled: $("#sched-enabled").checked,
     mode: $('input[name="mode"]:checked').value,
-    interval_hours: Number($("#sched-hours").value),
+    interval_minutes: Number($("#sched-hours").value),
     time: $("#sched-time").value || "07:00",
     days: $$("#sched-days input:checked").map((cb) => cb.value),
   };

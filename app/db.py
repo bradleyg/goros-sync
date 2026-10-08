@@ -137,6 +137,12 @@ def add_item(run_id: int, **fields: Any) -> None:
         conn.execute(f"INSERT INTO sync_items({cols}) VALUES({marks})", tuple(fields.values()))
 
 
+def delete_run(run_id: int) -> None:
+    with connect() as conn:
+        conn.execute("DELETE FROM sync_items WHERE run_id=?", (run_id,))
+        conn.execute("DELETE FROM sync_runs WHERE id=?", (run_id,))
+
+
 def list_runs(limit: int = 50, offset: int = 0) -> tuple[list[dict], int]:
     with connect() as conn:
         rows = conn.execute(

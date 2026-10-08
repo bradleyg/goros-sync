@@ -16,26 +16,32 @@ log = logging.getLogger(__name__)
 
 JOB_ID = "garmin-coros-sync"
 WEEKDAYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"]
-INTERVAL_CHOICES = [1, 2, 3, 4, 6, 8, 12, 24]
+# Interval options, in minutes.
+INTERVAL_CHOICES = [1, 2, 5, 10, 15, 30, 60, 120, 180, 240, 360, 480, 720, 1440]
 
 DEFAULT_SCHEDULE: dict[str, Any] = {
     "enabled": False,
     "mode": "interval",  # interval | daily
-    "interval_hours": 6,
+    "interval_minutes": 360,
     "time": "07:00",
     "days": WEEKDAYS,
 }
 
 
 def validate_schedule(data: dict[str, Any]) -> dict[str, Any]:
-    sched = {**DEFAULT_SCHEDULE, **(data or {})}
+    data = dict(data or {})
+    # Schedules saved before minute-level intervals stored whole hours.
+    legacy_hours = data.pop("interval_hours", None)
+    if legacy_hours is not None and "interval_minutes" not in data:
+        data["interval_minutes"] = int(legacy_hours) * 60
+    sched = {**DEFAULT_SCHEDULE, **data}
     sched["enabled"] = bool(sched["enabled"])
     if sched["mode"] not in {"interval", "daily"}:
         raise ValueError("mode must be 'interval' or 'daily'")
-    hours = int(sched["interval_hours"])
-    if hours not in INTERVAL_CHOICES:
-        raise ValueError(f"interval_hours must be one of {INTERVAL_CHOICES}")
-    sched["interval_hours"] = hours
+    minutes = int(sched["interval_minutes"])
+    if minutes not in INTERVAL_CHOICES:
+        raise ValueError(f"interval_minutes must be one of {INTERVAL_CHOICES}")
+    sched["interval_minutes"] = minutes
     try:
         hh, mm = (int(x) for x in str(sched["time"]).split(":"))
         assert 0 <= hh < 24 and 0 <= mm < 60
@@ -77,7 +83,7 @@ class SyncScheduler:
         if not sched["enabled"]:
             return
         if sched["mode"] == "interval":
-            trigger = IntervalTrigger(hours=sched["interval_hours"])
+            trigger = IntervalTrigger(minutes=sched["interval_minutes"])
         else:
             hh, mm = sched["time"].split(":")
             trigger = CronTrigger(hour=int(hh), minute=int(mm), day_of_week=",".join(sched["days"]))

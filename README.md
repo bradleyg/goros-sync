@@ -3,8 +3,8 @@
 A small self-hosted web app that copies your **completed Garmin Connect activities** (original FIT files) into **COROS Training Hub**.
 
 - **Manual sync**: click *Sync now* and choose how far back to look (today up to 365 days).
-- **Scheduled sync**: every N hours, or at a set time on chosen weekdays.
-- **History**: every run is logged with its trigger, counts and duration. Expand a run to see each activity's outcome (uploaded, processing, skipped or failed) and the error message for anything that failed.
+- **Scheduled sync**: on an interval (every minute up to every 24 hours), or at a set time on chosen weekdays.
+- **History**: every run is logged with its trigger, counts and duration. Expand a run to see each activity's outcome (uploaded, processing, skipped or failed) and the error message for anything that failed. Scheduled runs that find nothing new aren't logged (so a 1-minute schedule doesn't flood the list); the dashboard still shows when Garmin was last checked.
 
 ![](docs/screenshot.png)
 
