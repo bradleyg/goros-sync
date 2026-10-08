@@ -1,0 +1,231 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Garmin → COROS Sync</title>
+  <meta name="description" content="Self-hosted sync of Garmin Connect activities to COROS Training Hub, with manual sync, scheduling and a full sync history." />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23161a22'/%3E%3Ccircle cx='10' cy='16' r='4' fill='%23fff'/%3E%3Ccircle cx='22' cy='16' r='4' fill='%23ff5a36'/%3E%3C/svg%3E" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/static/styles.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="wrap topbar-inner">
+      <a class="brand" href="/" aria-label="Garmin to COROS Sync home">
+        <span class="brand-mark" aria-hidden="true">
+          <span class="dot dot-garmin"></span>
+          <svg viewBox="0 0 24 24" width="14" height="14"><path d="M5 12h12m-4-5 5 5-5 5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <span class="dot dot-coros"></span>
+        </span>
+        <span class="brand-text">Garmin <span class="muted">to</span> COROS</span>
+      </a>
+      <nav class="conn-pills" aria-label="Connection status">
+        <button class="pill" id="pill-garmin" data-open="garmin" type="button"><span class="led"></span>Garmin</button>
+        <button class="pill" id="pill-coros" data-open="coros" type="button"><span class="led"></span>COROS</button>
+      </nav>
+    </div>
+  </header>
+
+  <main class="wrap layout">
+    <div class="col-main">
+      <!-- Sync -->
+      <section class="card sync-card" id="sync-card" aria-labelledby="sync-title">
+        <div class="sync-head">
+          <div>
+            <p class="eyebrow">Activity sync</p>
+            <h1 id="sync-title" class="sync-headline">Loading…</h1>
+            <p class="sync-sub" id="sync-sub">&nbsp;</p>
+          </div>
+          <div class="sync-actions">
+            <label class="select-wrap" for="sync-window">
+              <span class="sr-only">Look-back window</span>
+              <select id="sync-window"></select>
+            </label>
+            <button class="btn btn-primary btn-lg" id="sync-now" type="button">
+              <svg class="ico spin-on-run" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 12a8 8 0 0 1-13.66 5.66M4 12a8 8 0 0 1 13.66-5.66M18 3v4h-4M6 21v-4h4" /></svg>
+              <span>Sync now</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="progress" id="progress" hidden>
+          <div class="progress-meta">
+            <span id="progress-phase">Starting</span>
+            <span class="mono" id="progress-count"></span>
+          </div>
+          <div class="progress-track"><div class="progress-bar" id="progress-bar"></div></div>
+          <p class="progress-current" id="progress-current"></p>
+        </div>
+
+        <div class="onboarding" id="onboarding" hidden>
+          <ol class="steps">
+            <li id="step-garmin"><span class="step-num">1</span><div><strong>Connect Garmin Connect</strong><span>Where your activities are recorded.</span></div><button class="btn btn-ghost" data-open="garmin" type="button">Connect</button></li>
+            <li id="step-coros"><span class="step-num">2</span><div><strong>Connect COROS</strong><span>Where they'll be imported.</span></div><button class="btn btn-ghost" data-open="coros" type="button">Connect</button></li>
+            <li id="step-sync"><span class="step-num">3</span><div><strong>Run your first sync</strong><span>Then set a schedule to keep it automatic.</span></div></li>
+          </ol>
+        </div>
+
+        <dl class="stats" id="stats">
+          <div><dt>Next automatic sync</dt><dd id="stat-next">—</dd></div>
+          <div><dt>Activities synced</dt><dd class="mono" id="stat-total">0</dd></div>
+          <div><dt>Sync runs</dt><dd class="mono" id="stat-runs">0</dd></div>
+        </dl>
+      </section>
+
+      <!-- History -->
+      <section class="card history-card" aria-labelledby="history-title">
+        <div class="card-head">
+          <div>
+            <h2 id="history-title">Sync history</h2>
+            <p class="card-sub">Every run, manual or scheduled. Select a run to see each activity.</p>
+          </div>
+          <button class="btn btn-text" id="clear-history" type="button">Clear</button>
+        </div>
+        <ol class="runs" id="runs" aria-live="polite"></ol>
+        <div class="empty" id="runs-empty" hidden>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 8v4l2.5 2.5M21 12a9 9 0 1 1-9-9" /></svg>
+          <p>No syncs yet. Your history will appear here.</p>
+        </div>
+        <button class="btn btn-ghost btn-block" id="runs-more" type="button" hidden>Show older runs</button>
+      </section>
+    </div>
+
+    <aside class="col-side">
+      <!-- Schedule -->
+      <section class="card" aria-labelledby="schedule-title">
+        <div class="card-head">
+          <div>
+            <h2 id="schedule-title">Schedule</h2>
+            <p class="card-sub" id="schedule-summary">Automatic sync is off.</p>
+          </div>
+          <label class="switch" for="sched-enabled">
+            <input type="checkbox" id="sched-enabled" role="switch" />
+            <span class="switch-track"><span class="switch-thumb"></span></span>
+            <span class="sr-only">Enable automatic sync</span>
+          </label>
+        </div>
+
+        <form id="schedule-form" class="sched-form" autocomplete="off">
+          <div class="segmented" role="radiogroup" aria-label="Schedule type">
+            <label><input type="radio" name="mode" value="interval" id="mode-interval" checked /><span>Every few hours</span></label>
+            <label><input type="radio" name="mode" value="daily" id="mode-daily" /><span>At a set time</span></label>
+          </div>
+
+          <div class="field" data-mode="interval">
+            <label for="sched-hours">Run every</label>
+            <div class="select-wrap"><select id="sched-hours"></select></div>
+          </div>
+
+          <div data-mode="daily" hidden>
+            <div class="field">
+              <label for="sched-time">Time</label>
+              <input type="time" id="sched-time" value="07:00" required />
+            </div>
+            <fieldset class="field">
+              <legend>Days</legend>
+              <div class="days" id="sched-days"></div>
+            </fieldset>
+          </div>
+
+          <div class="field">
+            <label for="lookback">Each sync checks the last</label>
+            <div class="input-suffix">
+              <input type="number" id="lookback" min="1" max="365" value="7" inputmode="numeric" />
+              <span>days</span>
+            </div>
+          </div>
+
+          <div class="form-foot">
+            <span class="hint" id="schedule-dirty" hidden>Unsaved changes</span>
+            <button class="btn btn-primary" id="sched-save" type="submit" disabled>Save</button>
+          </div>
+        </form>
+      </section>
+
+      <!-- Connections -->
+      <section class="card" aria-labelledby="conn-title">
+        <div class="card-head">
+          <div>
+            <h2 id="conn-title">Connections</h2>
+            <p class="card-sub">Credentials stay on this machine.</p>
+          </div>
+        </div>
+        <ul class="conns">
+          <li class="conn" id="conn-garmin">
+            <span class="conn-logo garmin" aria-hidden="true">G</span>
+            <div class="conn-body">
+              <strong>Garmin Connect</strong>
+              <span class="conn-detail">Not connected</span>
+              <span class="conn-error" hidden></span>
+            </div>
+            <div class="conn-actions">
+              <button class="btn btn-ghost btn-sm" data-open="garmin" type="button">Connect</button>
+              <button class="btn btn-text btn-sm" data-disconnect="garmin" type="button" hidden>Disconnect</button>
+            </div>
+          </li>
+          <li class="conn" id="conn-coros">
+            <span class="conn-logo coros" aria-hidden="true">C</span>
+            <div class="conn-body">
+              <strong>COROS</strong>
+              <span class="conn-detail">Not connected</span>
+              <span class="conn-error" hidden></span>
+            </div>
+            <div class="conn-actions">
+              <button class="btn btn-ghost btn-sm" data-open="coros" type="button">Connect</button>
+              <button class="btn btn-text btn-sm" data-disconnect="coros" type="button" hidden>Disconnect</button>
+            </div>
+          </li>
+        </ul>
+      </section>
+
+      <p class="footnote">Uses unofficial Garmin and COROS endpoints. Only activities with a recorded FIT file are transferred.</p>
+    </aside>
+  </main>
+
+  <!-- Connect dialog -->
+  <dialog class="dialog" id="connect-dialog" aria-labelledby="dlg-title">
+    <form method="dialog" class="dialog-form" id="connect-form" autocomplete="on">
+      <header class="dialog-head">
+        <span class="conn-logo" id="dlg-logo" aria-hidden="true">G</span>
+        <div>
+          <h2 id="dlg-title">Connect Garmin</h2>
+          <p class="card-sub" id="dlg-sub">Sign in with your Garmin Connect account.</p>
+        </div>
+      </header>
+
+      <div class="dialog-body" id="dlg-credentials">
+        <div class="field">
+          <label for="dlg-email">Email</label>
+          <input type="email" id="dlg-email" name="email" autocomplete="username" required />
+        </div>
+        <div class="field">
+          <label for="dlg-password">Password</label>
+          <input type="password" id="dlg-password" name="password" autocomplete="current-password" required />
+        </div>
+      </div>
+
+      <div class="dialog-body" id="dlg-mfa" hidden>
+        <div class="field">
+          <label for="dlg-code">Verification code</label>
+          <input type="text" id="dlg-code" name="code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9A-Za-z]{4,12}" placeholder="123456" />
+          <p class="hint">Garmin sent a code to your email or authenticator app.</p>
+        </div>
+      </div>
+
+      <p class="form-error" id="dlg-error" role="alert" hidden></p>
+
+      <footer class="dialog-foot">
+        <button class="btn btn-text" value="cancel" id="dlg-cancel" type="button">Cancel</button>
+        <button class="btn btn-primary" id="dlg-submit" type="submit">Connect</button>
+      </footer>
+    </form>
+  </dialog>
+
+  <div class="toasts" id="toasts" aria-live="assertive"></div>
+
+  <script src="/static/app.js" type="module"></script>
+</body>
+</html>

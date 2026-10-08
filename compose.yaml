@@ -1,0 +1,27 @@
+services:
+  garmin-coros-sync:
+    build: .
+    image: garmin-coros-sync:latest
+    container_name: garmin-coros-sync
+    restart: unless-stopped
+    ports:
+      # Defaults to localhost only. Set BIND_ADDRESS=0.0.0.0 in .env to expose on the LAN
+      # (set APP_PASSWORD too, and ideally put a TLS reverse proxy in front).
+      - "${BIND_ADDRESS:-127.0.0.1}:${PORT:-8484}:8484"
+    environment:
+      # Schedules ("daily at 07:00") and the timezone sent to COROS follow this.
+      TZ: ${TZ:-Europe/London}
+      # Optional HTTP basic-auth password for the UI (any username). Empty = no auth.
+      APP_PASSWORD: ${APP_PASSWORD:-}
+    volumes:
+      # SQLite DB, saved credentials and Garmin OAuth tokens.
+      - sync-data:/data
+    stop_grace_period: 20s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  sync-data:
